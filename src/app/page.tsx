@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Account, Tweet } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { Plus, Settings, Copy, Check, Trash2, X, FileText, Menu, ChevronDown, Upload, Type, Contrast, Minus, Maximize2, PanelLeftClose, PanelLeft, Sliders, Zap, Users, Download, FileJson, History, CloudDownload, Edit2, Star, GripVertical, Save, RefreshCw } from 'lucide-react'
+import { Plus, Settings, Copy, Check, Trash2, X, FileText, Menu, ChevronDown, Upload, Type, Contrast, Minus, Maximize2, PanelLeftClose, PanelLeft, Sliders, Zap, Users, Download, FileJson, History, CloudDownload, Edit2, Star, GripVertical, Save, RefreshCw, Keyboard } from 'lucide-react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { Tooltip } from '@/components/Tooltip'
@@ -146,7 +146,7 @@ export default function Home() {
       return {
         id: `tweet-${Date.now()}-${index}`,
         content: (processedContent || '').trim(),
-        originalContent: content,
+        originalContent: content || '',
         dmLink: account.dmLink,
         hashTags: extractHashtags(processedContent || ''),
         accountId: selectedAccountId,
