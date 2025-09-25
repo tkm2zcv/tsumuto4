@@ -1,0 +1,28 @@
+{
+  "name": "ツムート - ツムツム代行ツイート管理",
+  "short_name": "ツムート",
+  "description": "ツムツム代行サービスのツイート文章を効率的に管理するWebアプリケーション",
+  "theme_color": "#0f1419",
+  "background_color": "#0f1419",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "ja",
+  "dir": "ltr"
+}

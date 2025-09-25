@@ -1,0 +1,367 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#1a1f2e] text-gray-100;
+  }
+}
+
+@layer components {
+  .whitespace-pre-wrap {
+    white-space: pre-wrap !important;
+  }
+  
+  /* Custom Scrollbar */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #4b5563 #1f2937;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-800 rounded-lg;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded-lg;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+  
+  /* Apply custom scrollbar globally */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #4b5563 #1f2937;
+  }
+  
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    @apply bg-gray-800/50 rounded;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded;
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+}
+
+/* Pulse animation for copy button */
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.pulse-animation {
+  animation: pulse-green 0.5s ease-out;
+}
+
+/* Toast animation */
+@keyframes slide-in {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.toast-enter {
+  animation: slide-in 0.3s ease-out;
+}
+
+.toast-exit {
+  animation: slide-out 0.3s ease-out;
+}
+
+/* Stagger animation for tweet cards */
+@keyframes card-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes card-fade-scale {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) rotateX(30deg);
+  }
+  50% {
+    transform: scale(1.05) rotateX(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotateX(0deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.tweet-card-enter {
+  animation: card-slide-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.tweet-card-cascade {
+  animation: card-fade-scale 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.shimmer-effect {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Enhanced 3D hover effects */
+.tweet-card-3d {
+  transform-style: preserve-3d;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transform-origin: center;
+}
+
+.tweet-card-3d:hover {
+  transform: rotateY(3deg) rotateX(-2deg) translateZ(10px) scale(1.02);
+}
+
+/* Ripple effect for copy button */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.4);
+  width: 20px;
+  height: 20px;
+  animation: ripple 0.4s ease-out;
+  pointer-events: none;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+}
+
+/* Ensure button content is above ripple */
+button > svg {
+  position: relative;
+  z-index: 1;
+}
+
+/* Enhanced shadow on hover */
+.enhanced-shadow {
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.enhanced-shadow:hover {
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.1),
+    0 0 40px rgba(59, 130, 246, 0.2);
+}
+
+/* Glow effect for copied cards */
+@keyframes glow-pulse-green {
+  0%, 100% {
+    box-shadow:
+      0 0 10px rgba(34, 197, 94, 0.2),
+      0 0 20px rgba(34, 197, 94, 0.1),
+      inset 0 0 5px rgba(34, 197, 94, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 15px rgba(34, 197, 94, 0.3),
+      0 0 25px rgba(34, 197, 94, 0.15),
+      inset 0 0 8px rgba(34, 197, 94, 0.1);
+  }
+}
+
+@keyframes glow-pulse-blue {
+  0%, 100% {
+    box-shadow:
+      0 0 10px rgba(59, 130, 246, 0.2),
+      0 0 20px rgba(59, 130, 246, 0.1),
+      inset 0 0 5px rgba(59, 130, 246, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 15px rgba(59, 130, 246, 0.3),
+      0 0 25px rgba(59, 130, 246, 0.15),
+      inset 0 0 8px rgba(59, 130, 246, 0.1);
+  }
+}
+
+@keyframes glow-pulse-purple {
+  0%, 100% {
+    box-shadow:
+      0 0 10px rgba(147, 51, 234, 0.2),
+      0 0 20px rgba(147, 51, 234, 0.1),
+      inset 0 0 5px rgba(147, 51, 234, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 15px rgba(147, 51, 234, 0.3),
+      0 0 25px rgba(147, 51, 234, 0.15),
+      inset 0 0 8px rgba(147, 51, 234, 0.1);
+  }
+}
+
+@keyframes glow-pulse-orange {
+  0%, 100% {
+    box-shadow:
+      0 0 10px rgba(251, 146, 60, 0.2),
+      0 0 20px rgba(251, 146, 60, 0.1),
+      inset 0 0 5px rgba(251, 146, 60, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 15px rgba(251, 146, 60, 0.3),
+      0 0 25px rgba(251, 146, 60, 0.15),
+      inset 0 0 8px rgba(251, 146, 60, 0.1);
+  }
+}
+
+.copied-glow {
+  animation: glow-pulse-green 2s ease-in-out infinite;
+}
+
+.blue-glow {
+  animation: glow-pulse-blue 2s ease-in-out infinite;
+}
+
+.purple-glow {
+  animation: glow-pulse-purple 2s ease-in-out infinite;
+}
+
+.orange-glow {
+  animation: glow-pulse-orange 2s ease-in-out infinite;
+}
+
+/* Floating animation for interactive elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.float-on-hover:hover {
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Progress bar styles */
+.progress-bar {
+  height: 4px;
+  background: rgba(34, 197, 94, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #10b981);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+
+/* Smooth page transitions */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #1f2937 0%,
+    #374151 50%,
+    #1f2937 100%
+  );
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
