@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Account, Tweet } from '@/types'
+import { normalizeHashtagCharacters } from '@/utils/textNormalization'
 import { Upload, AlertCircle, CheckCircle, FileText } from 'lucide-react'
 
 interface TweetImporterProps {
@@ -50,6 +51,8 @@ export function TweetImporter({ accounts, onImport }: TweetImporterProps) {
       if (!processedContent.includes('ツムツム代行')) {
         processedContent = processedContent + '\n\nツムツム代行'
       }
+
+      processedContent = normalizeHashtagCharacters(processedContent)
 
       return {
         id: `tweet-${Date.now()}-${index}`,

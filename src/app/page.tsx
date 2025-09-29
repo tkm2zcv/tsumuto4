@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Account, Tweet } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { Plus, Settings, Copy, Check, Trash2, X, FileText, Menu, ChevronDown, Upload, Type, Contrast, Minus, Maximize2, PanelLeftClose, PanelLeft, Sliders, Zap, Users, Download, FileJson, History, CloudDownload, Edit2, Star, GripVertical, Save, RefreshCw, Keyboard } from 'lucide-react'
+import { Plus, Settings, Copy, Check, Trash2, X, FileText, Menu, ChevronDown, Upload, Type, Contrast, Minus, Maximize2, PanelLeftClose, PanelLeft, Sliders, Zap, Users, Download, FileJson, History, Edit2, Star, GripVertical, Save, RefreshCw, Keyboard } from 'lucide-react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { Tooltip } from '@/components/Tooltip'
@@ -11,6 +11,7 @@ import { ConfirmToast } from '@/components/ConfirmToast'
 import { SkeletonLoader } from '@/components/SkeletonLoader'
 import { PWAInstaller } from '@/components/PWAInstaller'
 import { UISettings } from '@/components/UISettings'
+import { normalizeHashtagCharacters } from '@/utils/textNormalization'
 
 // 仮想スクロールコンポーネントを動的インポート
 const VirtualTweetList = dynamic(
@@ -34,8 +35,6 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false)
   const [deletedAccounts, setDeletedAccounts] = useState<Account[]>([])
   const [showDeletedAccounts, setShowDeletedAccounts] = useState(false)
-  const [lastBackupTime, setLastBackupTime] = useState<Date | null>(null)
-  const [showBackupNotification, setShowBackupNotification] = useState(false)
   const [toastType, setToastType] = useState<'success' | 'error'>('success')
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium')
   const [highContrast, setHighContrast] = useState<boolean>(false)
@@ -142,6 +141,8 @@ export default function Home() {
           processedContent = processedContent.replace(dmLinkRegex, account.dmLink)
         }
       }
+
+      processedContent = normalizeHashtagCharacters(processedContent || '')
 
       return {
         id: `tweet-${Date.now()}-${index}`,
@@ -416,82 +417,6 @@ export default function Home() {
   }
 
   // 自動バックアップ
-  const autoBackup = useCallback(() => {
-    if (accounts.length > 0) {
-      const backupData = {
-        accounts,
-        deletedAccounts,
-        timestamp: new Date().toISOString()
-      }
-      localStorage.setItem('tsumuto_backup', JSON.stringify(backupData))
-      
-      // 初回のみ通知を表示
-      setLastBackupTime(prev => {
-        if (!prev) {
-          setShowBackupNotification(true)
-          setTimeout(() => setShowBackupNotification(false), 3000)
-        }
-        return new Date()
-      })
-    }
-  }, [accounts, deletedAccounts])
-
-  // 手動バックアップ
-  const manualBackup = () => {
-    const backupData = {
-      accounts,
-      deletedAccounts,
-      tweets,
-      timestamp: new Date().toISOString()
-    }
-    const jsonData = JSON.stringify(backupData, null, 2)
-    const blob = new Blob([jsonData], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `tsumuto_backup_${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    showToastNotification('バックアップファイルをダウンロードしました')
-  }
-
-  // バックアップから復元
-  const restoreFromBackup = async (file: File) => {
-    try {
-      const text = await file.text()
-      const backupData = JSON.parse(text)
-      
-      if (backupData.accounts) {
-        setAccounts(backupData.accounts)
-      }
-      if (backupData.deletedAccounts) {
-        setDeletedAccounts(backupData.deletedAccounts)
-      }
-      if (backupData.tweets) {
-        setTweets(backupData.tweets)
-      }
-      
-      showToastNotification('バックアップから復元しました')
-    } catch (error) {
-      showToastNotification('復元に失敗しました', true)
-    }
-  }
-
-
-  // 自動バックアップの設定
-  useEffect(() => {
-    const interval = setInterval(autoBackup, 60000) // 1分ごと
-    return () => clearInterval(interval)
-  }, [autoBackup])
-
-  // アカウント変更時に自動バックアップ（初回マウント時はスキップ）
-  useEffect(() => {
-    if (!mounted) return
-    if (accounts.length > 0) {
-      const timer = setTimeout(autoBackup, 1000) // 1秒後にバックアップ
-      return () => clearTimeout(timer)
-    }
-  }, [accounts.length, mounted])
 
   const handleCopyTweet = useCallback(async (tweet: Tweet, event?: React.MouseEvent<HTMLButtonElement>) => {
     let updatedTweets: Tweet[] = []
@@ -830,13 +755,6 @@ DMリンク
                     )}
                   </button>
                 )}
-                <button
-                  onClick={manualBackup}
-                  className="p-1 lg:p-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white"
-                  title="バックアップ作成"
-                >
-                  <CloudDownload className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
-                </button>
                 {accounts.length > 0 && (
                   <>
                     <button
