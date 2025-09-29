@@ -1132,15 +1132,6 @@ DMリンク
         </div>
       </div>
 
-      {/* Backup Notification */}
-      {showBackupNotification && (
-        <div className="fixed bottom-4 right-4 z-50 animate-pulse">
-          <div className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-            <CloudDownload className="h-5 w-5" />
-            <span className="text-sm">自動バックアップを有効化しました</span>
-          </div>
-        </div>
-      )}
 
       {/* Keyboard Shortcuts Modal */}
       {showKeyboardShortcuts && (
