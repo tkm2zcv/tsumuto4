@@ -1,11 +1,15 @@
 /** @type {import('next').NextConfig} */
 const path = require('path')
 
+const isVercel = Boolean(process.env.VERCEL)
+
 const nextConfig = {
   reactStrictMode: true,
 
-  // 複数のlockfileの警告を解決
-  outputFileTracingRoot: path.join(__dirname, '../../../'),
+  // 複数のlockfileの警告を解決（Vercelではプロジェクトルートを使用）
+  outputFileTracingRoot: isVercel
+    ? __dirname
+    : path.join(__dirname, '../../../'),
 
   // PWA用のヘッダー設定
   headers: async () => {
