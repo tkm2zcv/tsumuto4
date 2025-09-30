@@ -20,7 +20,12 @@
       "Bash(git commit:*)",
       "Bash(git config:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(git checkout:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

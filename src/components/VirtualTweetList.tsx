@@ -17,7 +17,7 @@ interface VirtualTweetListProps {
     tweet: string
   }
   animatingTweetIds?: Set<string>
-  onCopyTweet: (tweet: Tweet, event?: React.MouseEvent<HTMLButtonElement>) => void
+  onCopyTweet: (tweet: Tweet, event?: React.MouseEvent<HTMLElement>) => void
   onToggleUsed: (id: string) => void
   onDeleteTweet: (id: string) => void
   getTwitterCharCount: (text: string) => number
@@ -90,7 +90,8 @@ export function VirtualTweetList({
             >
               <div className="pb-3 lg:pb-4">
                 <div
-                  className={`rounded-xl p-4 lg:p-6 border transition-all duration-300 tweet-card-3d enhanced-shadow ${
+                  onClick={(e) => onCopyTweet(tweet, e)}
+                  className={`rounded-xl p-4 lg:p-6 border transition-all duration-300 tweet-card-3d enhanced-shadow cursor-pointer ${
                     copiedIds.has(tweet.id) ? 'copied-glow' : ''
                   } ${
                     highContrast
@@ -105,7 +106,7 @@ export function VirtualTweetList({
                   aria-label={`ツイート: ${tweet.content.substring(0, 50)}...`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={tweet.used}
@@ -120,19 +121,7 @@ export function VirtualTweetList({
                         {tweet.used ? '使用済み' : '未使用'}
                       </span>
                     </label>
-                    <div className="flex items-center gap-1 lg:gap-2">
-                      <button
-                        onClick={(e) => onCopyTweet(tweet, e)}
-                        className={`p-1.5 lg:p-2 rounded-lg hover:bg-gray-800 transition-colors group relative overflow-hidden ${
-                          pulsingId === tweet.id ? 'pulse-animation' : ''
-                        }`}
-                      >
-                        {copiedIds.has(tweet.id) ? (
-                          <Check className="h-4 w-4 text-green-400" />
-                        ) : (
-                          <Copy className="h-4 w-4 text-gray-500 group-hover:text-gray-300" />
-                        )}
-                      </button>
+                    <div className="flex items-center gap-1 lg:gap-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => onDeleteTweet(tweet.id)}
                         className="p-1.5 lg:p-2 rounded-lg hover:bg-gray-800 transition-colors group"
@@ -142,7 +131,7 @@ export function VirtualTweetList({
                     </div>
                   </div>
                   
-                  <div className={`${highContrast ? 'text-white' : 'text-gray-300'} whitespace-pre-wrap break-words leading-relaxed ${fontClasses.tweet}`}>
+                  <div className="text-gray-300 whitespace-pre-wrap break-words leading-relaxed text-sm lg:text-base">
                     {tweet.content}
                   </div>
                   
@@ -151,8 +140,8 @@ export function VirtualTweetList({
                       {new Date(tweet.createdAt).toLocaleDateString('ja-JP')} {new Date(tweet.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <span className={`text-xs font-medium ${
-                      getTwitterCharCount(tweet.content) > 280 
-                        ? 'text-red-400' 
+                      getTwitterCharCount(tweet.content) > 280
+                        ? 'text-red-400'
                         : 'text-gray-500'
                     }`}>
                       {getTwitterCharCount(tweet.content)} / 280

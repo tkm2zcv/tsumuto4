@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Account, Tweet } from '@/types'
+import { Account, Tweet, StockTweet } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { Plus, Settings, Copy, Check, Trash2, X, FileText, Menu, ChevronDown, Upload, Type, Contrast, Minus, Maximize2, PanelLeftClose, PanelLeft, Sliders, Zap, Users, Download, FileJson, History, Edit2, Star, GripVertical, Save, RefreshCw, Keyboard } from 'lucide-react'
 import Image from 'next/image'
@@ -25,6 +25,7 @@ const VirtualTweetList = dynamic(
 export default function Home() {
   const [accounts, setAccounts] = useLocalStorage<Account[]>('accounts', [])
   const [tweets, setTweets] = useState<Tweet[]>([])
+  const [stockTweets, setStockTweets] = useLocalStorage<StockTweet[]>('stockTweets', [])
   const [mounted, setMounted] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showImportSection, setShowImportSection] = useState(false)
@@ -84,6 +85,8 @@ export default function Home() {
   
   const [importText, setImportText] = useState('')
   const [selectedAccountId, setSelectedAccountId] = useState<string>('')
+  const [importMode, setImportMode] = useState<'regular' | 'stock'>('regular')
+  const [showStockManager, setShowStockManager] = useState(false)
 
   // アカウント選択時に最終使用日時を更新
   const handleAccountSelect = (accountId: string) => {
@@ -104,6 +107,11 @@ export default function Home() {
   const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set())
 
   const handleImport = () => {
+    if (importMode === 'stock') {
+      handleStockImport()
+      return
+    }
+
     if (!selectedAccountId || !importText.trim()) return
 
     const account = accounts.find(a => a.id === selectedAccountId)
@@ -111,29 +119,29 @@ export default function Home() {
 
     // Split by === dividers
     const sections = importText.split(/={3,}/)
-    
+
     const tweetTexts = sections.map(section => {
       // Skip empty sections
       if (!section.trim()) return null
-      
+
       // Remove tweet number headers but keep the content structure
       let cleaned = section
         .replace(/【ツイート案\s*\d+】/g, '')
         .replace(/^\n+/, '') // Remove leading newlines only
         .replace(/\n+$/, '') // Remove trailing newlines only
         .trim()
-      
+
       return cleaned
     }).filter(text => text && text.length > 0)
 
     const newTweets = tweetTexts.map((content, index) => {
       let processedContent = content
-      
+
       // Replace "DMリンク" placeholder with actual account DM link
       if (processedContent) {
         processedContent = processedContent.replace(/DMリンク/g, account.dmLink)
       }
-      
+
       // Also replace any existing x.com/messages links
       if (processedContent) {
         const dmLinkRegex = /https:\/\/x\.com\/messages\/[^\s]+/g
@@ -160,24 +168,121 @@ export default function Home() {
     const newTweetIds = new Set(newTweets.map(t => t.id))
     setAnimatingTweetIds(newTweetIds)
     setIsNewImport(true)
-    
+
     setTweets([...tweets, ...newTweets])
     setImportText('')
-    
+
     // モバイルの場合、インポート後にメニューを閉じる
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setShowImportSection(false)
       setShowMobileMenu(false)
     }
-    
+
     // 成功通知を表示
     showToastNotification(`${newTweets.length}件のツイートをインポートしました`)
-    
+
     // アニメーション後にフラグをリセット
     setTimeout(() => {
       setIsNewImport(false)
       setAnimatingTweetIds(new Set())
     }, newTweets.length * 100 + 1000) // 各カード100msの遅延 + 1秒の余裕
+  }
+
+  const handleStockImport = () => {
+    if (!importText.trim()) return
+
+    // Split by === dividers
+    const sections = importText.split(/={3,}/)
+
+    const tweetTexts = sections.map(section => {
+      // Skip empty sections
+      if (!section.trim()) return null
+
+      // Remove tweet number headers but keep the content structure
+      let cleaned = section
+        .replace(/【ツイート案\s*\d+】/g, '')
+        .replace(/^\n+/, '')
+        .replace(/\n+$/, '')
+        .trim()
+
+      return cleaned
+    }).filter(text => text && text.length > 0)
+
+    const newStockTweets: StockTweet[] = tweetTexts.map((content, index) => {
+      const normalizedContent = normalizeHashtagCharacters(content || '')
+      return {
+        id: `stock-${Date.now()}-${index}`,
+        content: normalizedContent.trim(),
+        createdAt: new Date()
+      }
+    })
+
+    setStockTweets([...stockTweets, ...newStockTweets])
+    setImportText('')
+
+    // 成功通知を表示
+    showToastNotification(`${newStockTweets.length}件のツイートをストックに追加しました`)
+  }
+
+  const handlePullFromStock = (count: number = 20) => {
+    if (!selectedAccountId) {
+      showToastNotification('アカウントを選択してください', true)
+      return
+    }
+
+    const account = accounts.find(a => a.id === selectedAccountId)
+    if (!account) return
+
+    if (stockTweets.length === 0) {
+      showToastNotification('ストックにツイートがありません', true)
+      return
+    }
+
+    // Pull requested number of tweets (or all if less than requested)
+    const pullCount = Math.min(count, stockTweets.length)
+    const pulledStockTweets = stockTweets.slice(0, pullCount)
+    const remainingStockTweets = stockTweets.slice(pullCount)
+
+    // Convert stock tweets to regular tweets with DM links
+    const newTweets: Tweet[] = pulledStockTweets.map((stockTweet, index) => {
+      let processedContent = stockTweet.content
+
+      // Replace "DMリンク" placeholder with actual account DM link
+      processedContent = processedContent.replace(/DMリンク/g, account.dmLink)
+
+      // Also replace any existing x.com/messages links
+      const dmLinkRegex = /https:\/\/x\.com\/messages\/[^\s]+/g
+      if (dmLinkRegex.test(processedContent)) {
+        processedContent = processedContent.replace(dmLinkRegex, account.dmLink)
+      }
+
+      return {
+        id: `tweet-${Date.now()}-${index}`,
+        content: processedContent.trim(),
+        originalContent: stockTweet.content,
+        dmLink: account.dmLink,
+        hashTags: extractHashtags(processedContent),
+        accountId: selectedAccountId,
+        used: false,
+        createdAt: new Date()
+      }
+    })
+
+    // Update stock (remove pulled tweets)
+    setStockTweets(remainingStockTweets)
+
+    // Add to regular tweets
+    setTweets([...tweets, ...newTweets])
+
+    // Success notification
+    showToastNotification(`ストックから${pullCount}件のツイートを引き出しました`)
+
+    // Update account last used
+    setAccounts(accounts.map(acc =>
+      acc.id === selectedAccountId
+        ? { ...acc, lastUsed: new Date() }
+        : acc
+    ))
   }
 
   const extractHashtags = (text: string): string[] => {
@@ -418,7 +523,7 @@ export default function Home() {
 
   // 自動バックアップ
 
-  const handleCopyTweet = useCallback(async (tweet: Tweet, event?: React.MouseEvent<HTMLButtonElement>) => {
+  const handleCopyTweet = useCallback(async (tweet: Tweet, event?: React.MouseEvent<HTMLElement>) => {
     let updatedTweets: Tweet[] = []
     
     try {
@@ -660,41 +765,90 @@ export default function Home() {
             インポート設定
           </h2>
 
-          {/* Account Selection */}
-          <div className="mb-3 lg:mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-gray-300 text-xs lg:text-sm">アカウント</label>
-              <button
-                onClick={() => setShowAccountManager(!showAccountManager)}
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
-                {showAccountManager ? '閉じる' : '管理'}
-              </button>
+          {/* Import Mode Toggle - Top Priority */}
+          <div className="mb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-1 w-1 rounded-full bg-blue-500"></div>
+              <label className="text-white text-sm font-medium">インポート先</label>
             </div>
-            <div className="relative">
-              <select
-                value={selectedAccountId}
-                onChange={(e) => handleAccountSelect(e.target.value)}
-                className="w-full appearance-none px-2 py-1.5 lg:px-3 lg:py-2 pr-8 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm lg:text-base focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setImportMode('regular')}
+                className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                  importMode === 'regular'
+                    ? `${colorClasses.primary} text-white shadow-lg`
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-750 hover:text-gray-300'
+                }`}
               >
-                <option value="">アカウントを選択...</option>
-                {sortedAccounts.map(account => (
-                  <option key={account.id} value={account.id}>
-                    {account.isFavorite ? '⭐ ' : ''}{account.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Zap className="h-4 w-4" />
+                  <span>通常</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setImportMode('stock')}
+                className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                  importMode === 'stock'
+                    ? `${colorClasses.primary} text-white shadow-lg`
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-750 hover:text-gray-300'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  <span>ストック</span>
+                </div>
+              </button>
             </div>
           </div>
 
-          {/* Tweet Import Textarea with Drag & Drop */}
-          <div>
-            <label className="text-gray-300 text-xs lg:text-sm mb-2 block">ツイート文章</label>
-            <div 
-              className={`relative transition-all duration-200 ${isDragging ? 'scale-[1.02]' : ''}`}
+          {/* Account Selection - Only for Regular Mode */}
+          {importMode === 'regular' && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-gray-300 text-sm">アカウント選択</label>
+                <button
+                  onClick={() => setShowAccountManager(!showAccountManager)}
+                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                >
+                  <Settings className="h-3 w-3" />
+                  {showAccountManager ? '閉じる' : '管理'}
+                </button>
+              </div>
+              <div className="relative">
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => handleAccountSelect(e.target.value)}
+                  className="w-full appearance-none px-3 py-2.5 pr-8 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                >
+                  <option value="">アカウントを選択...</option>
+                  {sortedAccounts.map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.isFavorite ? '⭐ ' : ''}{account.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+              {!selectedAccountId && (
+                <p className="text-xs text-yellow-500 mt-1 flex items-center gap-1">
+                  <span>⚠</span> アカウントを選択してください
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Tweet Import Textarea */}
+          <div className="mb-3">
+            <label className="text-gray-300 text-sm mb-2 block">
+              ツイート文章
+              {importMode === 'stock' && (
+                <span className="ml-2 text-xs text-purple-400">※アカウント不要</span>
+              )}
+            </label>
+            <div
+              className={`relative transition-all duration-200 ${isDragging ? 'scale-[1.01]' : ''}`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -702,34 +856,24 @@ export default function Home() {
               <textarea
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
-                placeholder="ツイート文章を貼り付け...
-
-===================
-【ツイート案 1067】
-===================
-💥ツイート内容...
-DMリンク
-===================
-
-「DMリンク」は自動置換されます"
-                className={`w-full h-64 lg:h-80 xl:h-96 px-3 py-2 lg:px-4 lg:py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none text-xs lg:text-sm font-mono transition-all duration-200 ${
-                  isDragging ? 'border-blue-500 bg-gray-800/50' : 'border-gray-700'
+                placeholder={importMode === 'stock'
+                  ? "ストックに追加するツイートを貼り付け...\n\n===================\n【ツイート案 1】\n===================\n💥ツイート内容...\nDMリンク\n==================="
+                  : "ツイート文章を貼り付け...\n\n===================\n【ツイート案 1】\n===================\n💥ツイート内容...\nDMリンク\n==================="}
+                className={`w-full h-48 px-3 py-2 bg-gray-800 border rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 resize-none text-xs font-mono transition-all duration-200 ${
+                  isDragging ? 'border-blue-500 bg-gray-800/50 ring-2 ring-blue-500/30' : 'border-gray-700'
                 }`}
               />
               {isDragging && (
                 <div className="absolute inset-0 bg-blue-500/10 rounded-lg flex items-center justify-center pointer-events-none">
-                  <div className="bg-gray-900/90 px-4 py-3 rounded-lg flex items-center gap-2">
+                  <div className="bg-gray-900/95 px-4 py-3 rounded-lg flex items-center gap-2 shadow-xl">
                     <Upload className="h-5 w-5 text-blue-400" />
                     <span className="text-white font-medium">テキストファイルをドロップ</span>
                   </div>
                 </div>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              テキストファイル(.txt)をドラッグ&ドロップでも読み込めます
-            </p>
+          </div>
         </div>
-      </div>
 
       {/* Account Manager (Collapsible) */}
       {showAccountManager && (
@@ -1053,44 +1197,66 @@ DMリンク
             </div>
           </div>
         )}
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-gray-800/50 rounded-lg p-2 lg:p-3 text-center">
-          <p className="text-lg lg:text-2xl font-bold text-white">{accounts.length}</p>
-          <p className="text-xs text-gray-400">アカウント</p>
+      {/* Stats Overview */}
+      <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-700/50">
+        <h3 className="text-xs text-gray-400 mb-2">統計</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-gray-900/50 rounded p-2">
+            <p className="text-xl font-bold text-white">{unusedTweets.length}</p>
+            <p className="text-[10px] text-gray-400">未使用ツイート</p>
+          </div>
+          <div className="bg-gray-900/50 rounded p-2">
+            <p className="text-xl font-bold text-gray-500">{usedTweets.length}</p>
+            <p className="text-[10px] text-gray-400">使用済み</p>
+          </div>
         </div>
-        <div className="bg-gray-800/50 rounded-lg p-2 lg:p-3 text-center">
-          <p className={`text-lg lg:text-2xl font-bold ${colorClasses.text}`}>{unusedTweets.length}</p>
-          <p className="text-xs text-gray-400">未使用</p>
-        </div>
-        <div className="bg-gray-800/50 rounded-lg p-2 lg:p-3 text-center">
-          <p className="text-lg lg:text-2xl font-bold text-gray-500">{usedTweets.length}</p>
-          <p className="text-xs text-gray-400">使用済み</p>
-        </div>
+        {stockTweets.length > 0 && (
+          <button
+            onClick={() => setShowStockManager(true)}
+            className="w-full mt-2 bg-gradient-to-r from-purple-900/40 to-blue-900/40 hover:from-purple-900/60 hover:to-blue-900/60 rounded p-2 border border-purple-500/30 transition-all flex items-center justify-between"
+          >
+            <div className="text-left">
+              <p className="text-xs text-purple-300 font-medium">ストック管理</p>
+              <p className="text-[10px] text-gray-400">保存: {stockTweets.length}件</p>
+            </div>
+            <FileText className="h-4 w-4 text-purple-400" />
+          </button>
+        )}
       </div>
 
       {/* Action Buttons */}
-      <div className="space-y-2 mt-4 lg:mt-6">
+      <div className="space-y-2 mt-4">
         <button
           onClick={handleImport}
-          disabled={!selectedAccountId || !importText.trim()}
-          className="w-full py-2 lg:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg font-medium text-sm lg:text-base transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          disabled={(importMode === 'regular' && !selectedAccountId) || !importText.trim()}
+          className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-semibold text-sm transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:shadow-none"
         >
-          <Zap className="h-4 w-4 lg:h-5 lg:w-5" />
-          ツイートをインポート
+          <Zap className="h-4 w-4" />
+          {importMode === 'stock' ? 'ストックに追加' : 'インポート実行'}
         </button>
-        
+
+        {stockTweets.length > 0 && importMode === 'regular' && (
+          <button
+            onClick={() => handlePullFromStock(20)}
+            disabled={!selectedAccountId}
+            className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium text-sm transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:shadow-none"
+          >
+            <Download className="h-4 w-4" />
+            ストックから20件引き出す
+          </button>
+        )}
+
         {tweets.length > 0 && (
           <button
             onClick={handleClearAll}
-            className="w-full py-1.5 lg:py-2 border border-gray-700 hover:bg-gray-800 text-gray-400 rounded-lg text-xs lg:text-sm transition-all"
+            className="w-full py-2 border border-gray-700 hover:bg-gray-800 hover:border-gray-600 text-gray-400 hover:text-gray-300 rounded-lg text-xs transition-all font-medium"
           >
             すべてクリア
           </button>
         )}
       </div>
+    </div>
     </div>
   )
 
@@ -1133,10 +1299,109 @@ DMリンク
       </div>
 
 
+      {/* Stock Manager Modal */}
+      {showStockManager && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setShowStockManager(false)}>
+          <div
+            className={`max-w-3xl w-full mx-4 rounded-lg shadow-xl p-6 max-h-[80vh] overflow-y-auto ${
+              highContrast ? 'bg-white text-black' : 'bg-gray-900 text-white'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5 text-purple-400" />
+                ストック管理
+                <span className="text-sm font-normal text-gray-400">
+                  ({stockTweets.length}件)
+                </span>
+              </h3>
+              <button
+                onClick={() => setShowStockManager(false)}
+                className="p-1 rounded hover:bg-gray-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+              <p className="text-sm text-gray-300">
+                ストックから引き出すとツイートは自動的に削除されます
+              </p>
+            </div>
+
+            {stockTweets.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400">ストックにツイートがありません</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {stockTweets.map((stockTweet, index) => (
+                  <div
+                    key={stockTweet.id}
+                    className="p-3 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-purple-500/50 transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-gray-500 mb-1">
+                          #{index + 1} - {new Date(stockTweet.createdAt).toLocaleDateString('ja-JP')}
+                        </div>
+                        <p className="text-sm text-gray-300 whitespace-pre-wrap break-words">
+                          {stockTweet.content.substring(0, 150)}
+                          {stockTweet.content.length > 150 && '...'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setStockTweets(stockTweets.filter(t => t.id !== stockTweet.id))
+                          showToastNotification('ツイートを削除しました')
+                        }}
+                        className="p-2 rounded-lg hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all flex-shrink-0"
+                        title="削除"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t border-gray-800 flex gap-2">
+              {stockTweets.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm(`ストック内の${stockTweets.length}件のツイートをすべて削除しますか？`)) {
+                      setStockTweets([])
+                      showToastNotification('ストックをすべて削除しました')
+                      setShowStockManager(false)
+                    }
+                  }}
+                  className="px-4 py-2 border border-red-500/50 hover:bg-red-500/20 text-red-400 rounded-lg text-sm transition-all"
+                >
+                  すべて削除
+                </button>
+              )}
+              <button
+                onClick={() => setShowStockManager(false)}
+                className={`flex-1 py-2 rounded-lg font-medium ${
+                  highContrast
+                    ? 'bg-black text-white hover:bg-gray-800'
+                    : 'bg-gray-800 hover:bg-gray-700 text-white'
+                }`}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Keyboard Shortcuts Modal */}
       {showKeyboardShortcuts && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setShowKeyboardShortcuts(false)}>
-          <div 
+          <div
             className={`max-w-md w-full mx-4 rounded-lg shadow-xl p-6 ${
               highContrast ? 'bg-white text-black' : 'bg-gray-900 text-white'
             }`}
@@ -1154,7 +1419,7 @@ DMリンク
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex justify-between items-center py-2 border-b border-gray-800">
                 <span className="text-sm">ショートカット一覧</span>
@@ -1181,8 +1446,8 @@ DMリンク
             <button
               onClick={() => setShowKeyboardShortcuts(false)}
               className={`w-full mt-4 py-2 rounded-lg font-medium ${
-                highContrast 
-                  ? 'bg-black text-white hover:bg-gray-800' 
+                highContrast
+                  ? 'bg-black text-white hover:bg-gray-800'
                   : 'bg-gray-800 hover:bg-gray-700 text-white'
               }`}
             >
@@ -1352,7 +1617,6 @@ DMリンク
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <p className="text-gray-400 text-xs mb-4">ツムツム代行ツイートを効率的に管理</p>
               <SidebarContent />
             </div>
           </div>
@@ -1436,9 +1700,6 @@ DMリンク
                   <Settings className="h-5 w-5" />
                 </button>
               </div>
-              <p className={`${highContrast ? 'text-gray-300' : 'text-gray-400'} ${fontClasses.body}`}>
-                ツムツム代行ツイートを効率的に管理
-              </p>
             </div>
             <SidebarContent />
           </>
@@ -1546,7 +1807,8 @@ DMリンク
                   <div
                     key={tweet.id}
                     id={`tweet-${tweet.id}`}
-                    className={`relative rounded-xl ${cardSizeClass} border tweet-card-3d enhanced-shadow ${
+                    onClick={(e) => handleCopyTweet(tweet, e)}
+                    className={`relative rounded-xl ${cardSizeClass} border tweet-card-3d enhanced-shadow cursor-pointer ${
                       isAnimating ? 'tweet-card-cascade' : ''
                     } ${
                       copiedIds.has(tweet.id) ? colorClasses.glow : ''
@@ -1571,7 +1833,7 @@ DMリンク
                       <div className="absolute inset-0 shimmer-effect rounded-xl pointer-events-none" />
                     )}
                     <div className="flex items-start justify-between mb-3 relative">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={tweet.used}
@@ -1586,22 +1848,7 @@ DMリンク
                           {tweet.used ? '使用済み' : '未使用'}
                         </span>
                       </label>
-                      <div className="flex items-center gap-1 lg:gap-2">
-                        <Tooltip content="コピー" position="top">
-                          <button
-                            onClick={(e) => handleCopyTweet(tweet, e)}
-                            className={`p-1.5 lg:p-2 rounded-lg hover:bg-gray-800 group relative overflow-hidden ${
-                              pulsingId === tweet.id ? 'pulse-animation' : ''
-                            }`}
-                            style={{ transitionDuration: `${animationDuration}ms` }}
-                          >
-                            {copiedIds.has(tweet.id) ? (
-                              <Check className={`h-4 w-4 ${colorClasses.text}`} />
-                            ) : (
-                              <Copy className="h-4 w-4 text-gray-500 group-hover:text-gray-300" />
-                            )}
-                          </button>
-                        </Tooltip>
+                      <div className="flex items-center gap-1 lg:gap-2" onClick={(e) => e.stopPropagation()}>
                         <Tooltip content="削除" position="top">
                           <button
                             onClick={() => handleDeleteTweet(tweet.id)}

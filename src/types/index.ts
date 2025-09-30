@@ -26,3 +26,9 @@ export interface ImportResult {
   duplicates: Tweet[]
   errors: string[]
 }
+
+export interface StockTweet {
+  id: string
+  content: string
+  createdAt: Date
+}
